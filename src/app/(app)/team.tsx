@@ -558,6 +558,7 @@ const styles = StyleSheet.create({
         width: '100%',
         maxWidth: 440,
         maxHeight: '80%',
+        flexShrink: 1,
         backgroundColor: Colors.surface,
         borderRadius: 20,
         borderWidth: 1.5,
@@ -764,6 +765,7 @@ const styles = StyleSheet.create({
 
     selectViewContainer: {
         width: '100%',
+        flexShrink: 1,
     },
     slotsScroll: {
         gap: 10,

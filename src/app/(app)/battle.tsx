@@ -29,7 +29,7 @@ const STAT_LABELS: Record<string, string> = {
 
 export default function Battle() {
     const { userData, updateStats } = useAuth();
-    const { team, capturePokemon } = useTeam();
+    const { team, capturedReservoir, capturePokemon } = useTeam();
 
     const [allPokemons, setAllPokemons] = useState<Pokemon[]>([]);
     const [loading, setLoading] = useState(true);
@@ -198,29 +198,43 @@ export default function Battle() {
 
             if (userWon && userData) {
                 setBattleLog('🏆 PARABÉNS! Você venceu a partida!');
-                const randomRewardId = Math.floor(Math.random() * 151) + 1;
-                const rewardPkm = allPokemons.find(p => p.id === randomRewardId);
+                const currentIds = new Set([
+                    ...team.map(p => p.id),
+                    ...capturedReservoir.map(p => p.id)
+                ]);
 
-                if (rewardPkm) {
-                    const isShinyRoll = Math.random() < 0.10;
-                    if (isShinyRoll) {
-                        try {
-                            const stored = await AsyncStorage.getItem('@Team:shiny_list');
-                            let currentShinies: number[] = stored ? JSON.parse(stored) : [];
-                            if (!currentShinies.includes(randomRewardId)) {
-                                currentShinies.push(randomRewardId);
-                                await AsyncStorage.setItem('@Team:shiny_list', JSON.stringify(currentShinies));
+                const availableIds = Array.from({ length: 151 }, (_, i) => i + 1)
+                    .filter(id => !currentIds.has(id));
+
+                if (availableIds.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * availableIds.length);
+                    const randomRewardId = availableIds[randomIndex];
+                    const rewardPkm = allPokemons.find(p => p.id === randomRewardId);
+
+                    if (rewardPkm) {
+                        const isShinyRoll = Math.random() < 0.10;
+                        if (isShinyRoll) {
+                            try {
+                                const stored = await AsyncStorage.getItem('@Team:shiny_list');
+                                let currentShinies: number[] = stored ? JSON.parse(stored) : [];
+                                if (!currentShinies.includes(randomRewardId)) {
+                                    currentShinies.push(randomRewardId);
+                                    await AsyncStorage.setItem('@Team:shiny_list', JSON.stringify(currentShinies));
+                                }
+                            } catch (e) {
+                                console.error('Erro ao salvar shiny no AsyncStorage:', e);
                             }
-                        } catch (e) {
-                            console.error('Erro ao salvar shiny no AsyncStorage:', e);
                         }
-                    }
 
-                    setRewardPokemon({
-                        ...rewardPkm,
-                        isShiny: isShinyRoll,
-                    });
-                    await capturePokemon(randomRewardId);
+                        setRewardPokemon({
+                            ...rewardPkm,
+                            isShiny: isShinyRoll,
+                        });
+                        await capturePokemon(randomRewardId);
+                    }
+                } else {
+                    setRewardPokemon(null);
+                    setBattleLog('🏆 PARABÉNS! Você venceu a partida! No entanto, você já possui todos os 151 Pokémons disponíveis.');
                 }
 
                 const wins = userData.vitorias + 1;
