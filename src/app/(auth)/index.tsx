@@ -6,8 +6,8 @@ import { StyleSheet, TouchableOpacity, View, Text } from 'react-native';
 import Button from '@/components/button';
 import { Input } from '@/components/input';
 import { Colors } from '@/constants/colors';
-import { AuthLayout } from '@/components/AuthLayout';
-import { AlertBanner } from '@/components/AlertBanner';
+import { AuthLayout } from '@/components/auth-layout';
+import { AlertBanner } from '@/components/alert-banner';
 import { PokeballLoading } from '@/components/pokeball-loading';
 
 export default function Index() {

@@ -17,9 +17,9 @@ import { Colors, getColor } from '@/constants/colors';
 import Button from '@/components/button';
 import { STATS_POOL, STAT_LABELS } from '@/constants/pokemon';
 import { useShinyList } from '@/hooks/useShinyList';
-import { ScoreBoard } from '@/components/ScoreBoard';
-import { BattleLogBox } from '@/components/BattleLogBox';
-import { PokemonStage } from '@/components/PokemonStage';
+import { ScoreBoard } from '@/components/score-board';
+import { BattleLogBox } from '@/components/battle-log-box';
+import { PokemonStage } from '@/components/pokemon-stage';
 
 export default function Battle() {
     const { userData, updateStats } = useAuth();

@@ -1,56 +1,9 @@
-import React from 'react';
-import {
-    View,
-    Text,
-    StyleSheet,
-    Platform,
-    KeyboardAvoidingView,
-    ScrollView,
-} from 'react-native';
-import { Pokeball } from '@/components/pokeball';
+import { StyleSheet, Platform } from 'react-native';
 import { Colors } from '@/constants/colors';
-
-interface AuthLayoutProps {
-    subtitle: string;
-    cardTitle: string;
-    children: React.ReactNode;
-}
-
-export function AuthLayout({ subtitle, cardTitle, children }: AuthLayoutProps) {
-    return (
-        <KeyboardAvoidingView
-            style={styles.flex}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-            <ScrollView
-                contentContainerStyle={styles.container}
-                keyboardShouldPersistTaps="handled">
-                {Platform.OS === 'web' && (
-                    <>
-                        <View style={styles.orbBlue} />
-                        <View style={styles.orbOrange} />
-                    </>
-                )}
-
-                <View style={styles.header}>
-                    <View style={styles.logoRow}>
-                        <Pokeball size={Platform.OS === 'web' ? 28 : 22} />
-                        <Text style={styles.logoText}>PokeBattle</Text>
-                    </View>
-                    <Text style={styles.subtitle}>{subtitle}</Text>
-                </View>
-
-                <View style={styles.card}>
-                    <Text style={styles.cardTitle}>{cardTitle}</Text>
-                    {children}
-                </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
-    );
-}
 
 const isWeb = Platform.OS === 'web';
 
-const styles = StyleSheet.create({
+export const Styles = StyleSheet.create({
     flex: { flex: 1, backgroundColor: Colors.background },
     container: {
         flexGrow: 1,

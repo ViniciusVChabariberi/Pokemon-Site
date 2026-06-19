@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import { Colors } from '@/constants/colors';
+import { Styles } from './style';
 
 interface AlertBannerProps {
     visible: boolean;
@@ -15,14 +16,14 @@ export function AlertBanner({ visible, message, type }: AlertBannerProps) {
 
     return (
         <View style={[
-            styles.alertContainer,
+            Styles.alertContainer,
             {
                 backgroundColor: themeColors.bg,
                 borderColor: themeColors.border,
             }
         ]}>
             <Text style={[
-                styles.alertText,
+                Styles.alertText,
                 {
                     color: themeColors.text,
                 }
@@ -32,18 +33,3 @@ export function AlertBanner({ visible, message, type }: AlertBannerProps) {
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    alertContainer: {
-        padding: 12,
-        borderRadius: 8,
-        borderWidth: 1,
-        marginBottom: 8,
-        width: '100%',
-    },
-    alertText: {
-        fontSize: 13,
-        fontWeight: '600',
-        textAlign: 'center',
-    },
-});

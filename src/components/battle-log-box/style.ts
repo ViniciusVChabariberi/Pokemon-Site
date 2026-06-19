@@ -1,20 +1,7 @@
-import React from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 import { Colors } from '@/constants/colors';
 
-interface BattleLogBoxProps {
-    battleLog: string;
-}
-
-export function BattleLogBox({ battleLog }: BattleLogBoxProps) {
-    return (
-        <View style={styles.logBox}>
-            <Text style={styles.logText}>{battleLog}</Text>
-        </View>
-    );
-}
-
-const styles = StyleSheet.create({
+export const Styles = StyleSheet.create({
     logBox: {
         backgroundColor: Colors.black,
         borderRadius: 12,

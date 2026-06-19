@@ -13,7 +13,7 @@ import { useTeam } from '@/context/TeamContext';
 import { Colors, getColor } from '@/constants/colors';
 import { Pokemon } from '@/@types/pokemon';
 import { useShinyList } from '@/hooks/useShinyList';
-import { PokemonDetailModal } from '@/components/PokemonDetailModal';
+import { PokemonDetailModal } from '@/components/pokemon-detail-modal';
 
 export default function Team() {
     const { team, capturedReservoir, isLoadingTeam, swapPokemon } = useTeam();
