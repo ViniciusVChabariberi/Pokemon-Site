@@ -4,7 +4,6 @@ import {
     Text,
     StyleSheet,
     Image,
-    TouchableOpacity,
     ActivityIndicator,
     ScrollView,
     Platform,
@@ -16,16 +15,11 @@ import { getPokemon } from '@/integration/pokemonIntegration';
 import { Pokemon } from '@/@types/pokemon';
 import { Colors, getColor } from '@/constants/colors';
 import Button from '@/components/button';
-
-const STATS_POOL = ['hp', 'atk', 'def', 'spa', 'spd', 'speed'];
-const STAT_LABELS: Record<string, string> = {
-    hp: 'HP',
-    atk: 'ATK',
-    def: 'DEF',
-    spa: 'SP. ATK',
-    spd: 'SP. DEF',
-    speed: 'SPEED',
-};
+import { STATS_POOL, STAT_LABELS } from '@/constants/pokemon';
+import { useShinyList } from '@/hooks/useShinyList';
+import { ScoreBoard } from '@/components/ScoreBoard';
+import { BattleLogBox } from '@/components/BattleLogBox';
+import { PokemonStage } from '@/components/PokemonStage';
 
 export default function Battle() {
     const { userData, updateStats } = useAuth();
@@ -34,7 +28,7 @@ export default function Battle() {
     const [allPokemons, setAllPokemons] = useState<Pokemon[]>([]);
     const [loading, setLoading] = useState(true);
     const [gameState, setGameState] = useState<'idle' | 'playing' | 'round_resolved' | 'finished'>('idle');
-    const [shinyIds, setShinyIds] = useState<number[]>([]);
+    const { shinyIds } = useShinyList(gameState);
 
     const [opponentTeam, setOpponentTeam] = useState<Pokemon[]>([]);
 
@@ -70,20 +64,6 @@ export default function Battle() {
         }
         fetchPokemons();
     }, []);
-
-    useEffect(() => {
-        async function loadShinyIds() {
-            try {
-                const stored = await AsyncStorage.getItem('@Team:shiny_list');
-                if (stored) {
-                    setShinyIds(JSON.parse(stored));
-                }
-            } catch (e) {
-                console.error('Erro ao ler shinies locais na Arena:', e);
-            }
-        }
-        loadShinyIds();
-    }, [gameState]);
 
     const getStatValue = (pokemon: Pokemon, statName: string): number => {
         const apiNameMap: Record<string, string> = {
@@ -167,7 +147,7 @@ export default function Battle() {
                 } else if (pValue < oValue) {
                     winner = 'opponent';
                 } else {
-                    winner = 'player';
+                    winner = 'tie';
                 }
 
                 setRoundWinner(winner);
@@ -176,9 +156,11 @@ export default function Battle() {
                 if (winner === 'player') {
                     setPlayerScore(prev => prev + 1);
                     logMsg = `Seu ${playerPkm.nome.toUpperCase()} venceu o ${opponentPkm.nome.toUpperCase()}! Seu ${STAT_LABELS[pStat]} (${pValue}) foi maior que o ${STAT_LABELS[oStat]} (${oValue}) do oponente!`;
-                } else {
+                } else if (winner === 'opponent') {
                     setOpponentScore(prev => prev + 1);
                     logMsg = `O ${opponentPkm.nome.toUpperCase()} oponente venceu! O ${STAT_LABELS[oStat]} (${oValue}) do oponente foi maior que o seu ${STAT_LABELS[pStat]} (${pValue})!`;
+                } else {
+                    logMsg = `Empate nesta rodada! Seu ${playerPkm.nome.toUpperCase()} (${STAT_LABELS[pStat]}: ${pValue}) empatou com o ${opponentPkm.nome.toUpperCase()} do oponente (${STAT_LABELS[oStat]}: ${oValue})!`;
                 }
 
                 setBattleLog(logMsg);
@@ -194,9 +176,8 @@ export default function Battle() {
 
         if (newPlayerScore >= 3 || newOpponentScore >= 3 || nextRoundIdx >= 5) {
             setGameState('finished');
-            const userWon = newPlayerScore > newOpponentScore;
 
-            if (userWon && userData) {
+            if (newPlayerScore > newOpponentScore) {
                 setBattleLog('🏆 PARABÉNS! Você venceu a partida!');
                 const currentIds = new Set([
                     ...team.map(p => p.id),
@@ -237,15 +218,23 @@ export default function Battle() {
                     setBattleLog('🏆 PARABÉNS! Você venceu a partida! No entanto, você já possui todos os 151 Pokémons disponíveis.');
                 }
 
-                const wins = userData.vitorias + 1;
-                const losses = userData.derrotas;
-                const newLevel = 1 + Math.floor(wins / 5);
-                await updateStats(wins, losses, newLevel);
-            } else if (userData) {
+                if (userData) {
+                    const wins = userData.vitorias + 1;
+                    const losses = userData.derrotas;
+                    const newLevel = 1 + Math.floor(wins / 5);
+                    await updateStats(wins, losses, newLevel);
+                }
+            } else if (newOpponentScore > newPlayerScore) {
+                setRewardPokemon(null);
                 setBattleLog('💀 DERROTA! O oponente venceu esta partida.');
-                const wins = userData.vitorias;
-                const losses = userData.derrotas + 1;
-                await updateStats(wins, losses, userData.level);
+                if (userData) {
+                    const wins = userData.vitorias;
+                    const losses = userData.derrotas + 1;
+                    await updateStats(wins, losses, userData.level);
+                }
+            } else {
+                setRewardPokemon(null);
+                setBattleLog('🤝 EMPATE! A partida terminou empatada.');
             }
         } else {
             setCurrentRound(nextRoundIdx);
@@ -288,8 +277,15 @@ export default function Battle() {
                 </View>
             ) : gameState === 'finished' ? (
                 <View style={styles.finishedContainer}>
-                    <Text style={[styles.resultTitle, playerScore > opponentScore ? styles.winColor : styles.lossColor]}>
-                        {playerScore > opponentScore ? '🏆 VITÓRIA!' : '💀 DERROTA!'}
+                    <Text style={[
+                        styles.resultTitle,
+                        playerScore > opponentScore 
+                            ? styles.winColor 
+                            : (playerScore < opponentScore ? styles.lossColor : styles.tieColor)
+                    ]}>
+                        {playerScore > opponentScore 
+                            ? '🏆 VITÓRIA!' 
+                            : (playerScore < opponentScore ? '💀 DERROTA!' : '🤝 EMPATE!')}
                     </Text>
 
                     <Text style={styles.scoreBoardText}>
@@ -329,81 +325,40 @@ export default function Battle() {
                 </View>
             ) : (
                 <View style={styles.battleArea}>
-                    <View style={styles.scoreBoard}>
-                        <View style={styles.scoreBox}>
-                            <Text style={styles.scoreLabel}>Seu Time</Text>
-                            <Text style={styles.scoreValue}>{playerScore}</Text>
-                        </View>
-                        <Text style={styles.vsText}>VS</Text>
-                        <View style={styles.scoreBox}>
-                            <Text style={styles.scoreLabel}>Oponente</Text>
-                            <Text style={styles.scoreValue}>{opponentScore}</Text>
-                        </View>
-                    </View>
+                    <ScoreBoard
+                        playerScore={playerScore}
+                        opponentScore={opponentScore}
+                    />
 
                     <View style={styles.arenaRow}>
-                        <View style={styles.pokemonStage}>
-                            <Image
-                                source={{
-                                    uri: (team[currentRound] && shinyIds.includes(team[currentRound].id))
-                                        ? team[currentRound].imagem.replace('/official-artwork/', '/official-artwork/shiny/')
-                                        : team[currentRound].imagem
-                                }}
-                                style={styles.pokemonImage}
-                            />
-                            <Text style={styles.pokemonName}>{team[currentRound].nome}</Text>
-                            {roundWinner === 'player' && <Text style={styles.winnerBadge}>👑 Ganhou</Text>}
+                        <PokemonStage
+                            pokemon={team[currentRound]}
+                            imageUri={(() => {
+                                const pkm = team[currentRound];
+                                if (!pkm) return '';
+                                const isShiny = shinyIds.includes(pkm.id);
+                                const detail = allPokemons.find(p => p.id === pkm.id);
+                                if (detail) {
+                                    return isShiny 
+                                        ? (detail.imagemShiny || detail.imagem.replace('/official-artwork/', '/official-artwork/shiny/')) 
+                                        : detail.imagem;
+                                }
+                                return isShiny 
+                                    ? pkm.imagem.replace('/official-artwork/', '/official-artwork/shiny/') 
+                                    : pkm.imagem;
+                            })()}
+                            isWinner={roundWinner === 'player'}
+                            selectedStat={playerSelectedStat}
+                            activeIndex={playerActiveIndex}
+                        />
 
-                            <View style={styles.statsList}>
-                                {STATS_POOL.map((statKey, index) => {
-                                    const val = getStatValue(team[currentRound], statKey);
-                                    const isSelected = playerSelectedStat === statKey;
-                                    const isBlinking = playerActiveIndex === index;
-                                    return (
-                                        <View key={`p-${statKey}`} style={[
-                                            styles.statItem,
-                                            isSelected && styles.statItemHighlight,
-                                            isBlinking && styles.statItemBlinking
-                                        ]}>
-                                            <Text style={[styles.statName, isSelected && styles.statHighlightText]}>
-                                                {STAT_LABELS[statKey]}
-                                            </Text>
-                                            <Text style={[styles.statValue, isSelected && styles.statHighlightText]}>
-                                                {val}
-                                            </Text>
-                                        </View>
-                                    );
-                                })}
-                            </View>
-                        </View>
-
-                        <View style={styles.pokemonStage}>
-                            <Image source={{ uri: opponentTeam[currentRound].imagem }} style={styles.pokemonImage} />
-                            <Text style={styles.pokemonName}>{opponentTeam[currentRound].nome}</Text>
-                            {roundWinner === 'opponent' && <Text style={styles.winnerBadge}>👑 Ganhou</Text>}
-
-                            <View style={styles.statsList}>
-                                {STATS_POOL.map((statKey, index) => {
-                                    const val = getStatValue(opponentTeam[currentRound], statKey);
-                                    const isSelected = opponentSelectedStat === statKey;
-                                    const isBlinking = opponentActiveIndex === index;
-                                    return (
-                                        <View key={`o-${statKey}`} style={[
-                                            styles.statItem,
-                                            isSelected && styles.statItemHighlight,
-                                            isBlinking && styles.statItemBlinking
-                                        ]}>
-                                            <Text style={[styles.statName, isSelected && styles.statHighlightText]}>
-                                                {STAT_LABELS[statKey]}
-                                            </Text>
-                                            <Text style={[styles.statValue, isSelected && styles.statHighlightText]}>
-                                                {val}
-                                            </Text>
-                                        </View>
-                                    );
-                                })}
-                            </View>
-                        </View>
+                        <PokemonStage
+                            pokemon={opponentTeam[currentRound]}
+                            imageUri={opponentTeam[currentRound].imagem}
+                            isWinner={roundWinner === 'opponent'}
+                            selectedStat={opponentSelectedStat}
+                            activeIndex={opponentActiveIndex}
+                        />
                     </View>
 
                     <View style={styles.rouletteBox}>
@@ -420,9 +375,7 @@ export default function Battle() {
                         )}
                     </View>
 
-                    <View style={styles.logBox}>
-                        <Text style={styles.logText}>{battleLog}</Text>
-                    </View>
+                    <BattleLogBox battleLog={battleLog} />
 
                     {gameState === 'round_resolved' && (
                         <Button
@@ -484,7 +437,6 @@ const styles = StyleSheet.create({
         fontSize: 14,
         textAlign: 'center',
     },
-
     idleContainer: {
         alignItems: 'center',
         gap: 24,
@@ -506,123 +458,16 @@ const styles = StyleSheet.create({
         width: 250,
         marginTop: 8,
     },
-
     battleArea: {
         width: '100%',
         maxWidth: 600,
         gap: 20,
-    },
-    scoreBoard: {
-        flexDirection: 'row',
-        backgroundColor: Colors.surface,
-        borderRadius: 16,
-        borderWidth: 1.5,
-        borderColor: Colors.primaryAlpha['30'],
-        padding: 16,
-        alignItems: 'center',
-        justifyContent: 'space-around',
-    },
-    scoreBox: {
-        alignItems: 'center',
-    },
-    scoreLabel: {
-        color: Colors.whiteAlpha['50'],
-        fontSize: 11,
-        fontWeight: '800',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-    scoreValue: {
-        color: Colors.white,
-        fontSize: 32,
-        fontWeight: '900',
-        marginTop: 4,
-    },
-    vsText: {
-        color: Colors.btnPrimary,
-        fontSize: 20,
-        fontWeight: '900',
     },
     arenaRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         gap: 16,
     },
-    pokemonStage: {
-        flex: 1,
-        backgroundColor: Colors.surface,
-        borderRadius: 18,
-        borderWidth: 1.5,
-        borderColor: Colors.whiteAlpha['12'],
-        padding: 12,
-        alignItems: 'center',
-        position: 'relative',
-    },
-    pokemonImage: {
-        width: 100,
-        height: 100,
-        resizeMode: 'contain',
-    },
-    pokemonName: {
-        color: Colors.white,
-        fontSize: 16,
-        fontWeight: 'bold',
-        textTransform: 'capitalize',
-        marginTop: 4,
-        marginBottom: 8,
-    },
-    winnerBadge: {
-        position: 'absolute',
-        top: -10,
-        backgroundColor: Colors.game.win,
-        color: Colors.black,
-        fontSize: 10,
-        fontWeight: '900',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 12,
-        textTransform: 'uppercase',
-    },
-
-    statsList: {
-        width: '100%',
-        marginTop: 8,
-        gap: 4,
-    },
-    statItem: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingVertical: 4,
-        paddingHorizontal: 8,
-        borderRadius: 6,
-        backgroundColor: Colors.whiteAlpha['05'],
-        borderWidth: 1,
-        borderColor: 'transparent',
-    },
-    statItemHighlight: {
-        backgroundColor: Colors.primaryAlpha['18'],
-        borderColor: Colors.btnPrimary,
-    },
-    statItemBlinking: {
-        backgroundColor: Colors.whiteAlpha['12'],
-        borderColor: Colors.white,
-    },
-    statName: {
-        color: Colors.whiteAlpha['50'],
-        fontSize: 11,
-        fontWeight: '600',
-        textTransform: 'uppercase',
-    },
-    statValue: {
-        color: Colors.white,
-        fontSize: 11,
-        fontWeight: '700',
-    },
-    statHighlightText: {
-        color: Colors.btnPrimary,
-        fontWeight: 'bold',
-    },
-
     rouletteBox: {
         backgroundColor: Colors.surfaceDeep,
         borderRadius: 12,
@@ -653,26 +498,9 @@ const styles = StyleSheet.create({
         color: Colors.white,
         fontWeight: 'bold',
     },
-
-    logBox: {
-        backgroundColor: Colors.black,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: Colors.whiteAlpha['12'],
-        padding: 16,
-        minHeight: 70,
-        justifyContent: 'center',
-    },
-    logText: {
-        color: '#00FF00',
-        fontSize: 13,
-        fontFamily: Platform.OS === 'web' ? 'Courier New, monospace' : undefined,
-        lineHeight: 18,
-    },
     actionBtn: {
         width: '100%',
     },
-
     finishedContainer: {
         alignItems: 'center',
         gap: 20,
@@ -691,6 +519,9 @@ const styles = StyleSheet.create({
     },
     lossColor: {
         color: Colors.game.loss,
+    },
+    tieColor: {
+        color: '#FFD600',
     },
     scoreBoardText: {
         color: Colors.white,
